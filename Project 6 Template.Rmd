@@ -44,12 +44,36 @@ Matching is usually used in observational studies to to approximate random assig
 
 ```{r}
 # Generate a vector that randomly assigns each unit to treatment/control
+rdm_vtr <- sample(0:1, size = nrow(ypsps), replace = TRUE, prob = c(0.5,0.5)) ## 0 = Control; 1 = Treatment
 
 # Choose a baseline covariate (use dplyr for this)
+sample_df = ypsps %>% 
+  select(student_demonstrate) %>% 
+  mutate(rdm_vtr)
 
 # Visualize the distribution by treatment/control (ggplot)
+ggplot(sample_df, aes(x = student_demonstrate, fill = factor(rdm_vtr))) + 
+  geom_bar() +
+  facet_grid(rdm_vtr~.) +
+  labs(title = "Distribution of Student Participation in Demonstrations", fill = "Random \nAssignment\n")
 
-# Simulate this 10,000 times (monte carlo simulation - see R Refresher for a hint)
+# Simulate this 10,000 times
+distr_vec <- vector()
+
+for (iter_num in 1:10000) {  
+   rdm_vtr <- sample(0:1, size = nrow(ypsps), replace = TRUE, prob = c(0.5,0.5))
+   
+   sample_df = ypsps %>% 
+     select(student_demonstrate) %>% 
+     mutate(rdm_vtr)
+   
+   distr_vec <- c(distr_vec, 
+                  (sum(sample_df[which(sample_df$rdm_vtr==1), 1]) / nrow(sample_df))
+                  ) 
+}
+ggplot() + 
+  geom_histogram(aes(distr_vec))
+
 ```
 
 ## Questions
@@ -57,7 +81,8 @@ Matching is usually used in observational studies to to approximate random assig
     \item \textbf{What do you see across your simulations? Why does independence of treatment assignment and baseline covariates not guarantee balance of treatment assignment and baseline covariates?}
 \end{enumerate}
 
-\textbf{Your Answer}: 
+\textbf{Your Answer}: From the histogram, it appears that there is a normal distribution of students engaging in political demonstrations across the control/treatment classes. This normal distribution indicates that there is an independence between the selected covariate and the exposure variable. However, we can not assume independence of treatment assignment because this is an observational study, not an experiment study.
+
 
 # Propensity Score Matching
 
