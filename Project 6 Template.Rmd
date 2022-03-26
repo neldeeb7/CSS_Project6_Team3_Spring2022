@@ -90,14 +90,70 @@ ggplot() +
 Select covariates that you think best represent the "true" model predicting whether a student chooses to attend college, and estimate a propensity score model to calculate the Average Treatment Effect on the Treated (ATT). Plot the balance of the top 10 (or fewer if you select fewer covariates). Report the balance of the p-scores across both the treatment and control groups, and using a threshold of standardized mean difference of p-score $\leq .1$, report the number of covariates that meet that balance threshold.
 
 ```{r}
-# Select covariates that represent the "true" model for selection, fit model
+# Select covariates that represent the "true" model for selection into college
+sel_college_vars <- c("student_GPA", "student_SchOfficer", "student_SchClub", "student_SchOfficer", "student_SchPublish", "student_Hobby", "student_SchClub", "student_OccClub", "student_NeighClub", "student_RelClub", "student_YouthOrg", "student_MiscClub", "student_ClubLev", "student_Knowledge", "student_FPlans", "student_Newspaper", "student_Magazine", "student_Gen", "student_Race", "parent_EducHH", "parent_EducW", "parent_HHInc", "parent_Knowledge")
 
-# Plot the balance for the top 10 covariates
+##Logic for choosing the above covariates:
+# student's GPA and school involvement are part of admissions
+# student knowledge & whether they finish plans
+# students' desire to read probably influences future plans for education
+# parental educ, knowledge, and income matter
+# gender and race of student influences college attendance
 
-# Report the overall balance and the proportion of covariates that meet the balance threshold
+# Fit model with matching
+glm_formula <- paste("college ~ ",paste(sel_college_vars, collapse=" + "))
+matching_ps_att <- matchit(formula = formula(glm_formula),
+                            data = ypsps,
+                            method = "nearest",
+                            distance = "glm",
+                            link = "logit",
+                            estimand = "ATT",
+                            replace = TRUE, 
+                            #because there is imbalance in the number of college attendees and non-attendees
+                            ratio = 2)
+
+# Save data from model for later
+matching_ps_att_data <- match.data(matching_ps_att)
 ```
 
+
+```{r}
+# Report the overall balance and the proportion of covariates that meet the balance threshold
+# Install cobalt
+install.packages("cobalt")
+library(cobalt)
+# Use cobalt to create a balance table
+balance_table <- bal.tab(x = matching_ps_att, thresholds = .1)
+balance_table
+# Only 12 out of 22 covariates are balanced post-matching
+# We have 306 controls matched to 803 treated. 145 controls had no match.
+
+summary(matching_ps_att) # this shows percent balance improvement post-matching
+# Balance got worse for these covariates after matching:
+## student_SchClub                    (-16.6%)
+## student_Hobby                      (-588.3%)
+## student_Race                       (-8.2%)
+# However, student_Race is still balanced in the end, meeting the threshold
+
+# Examine and plot the balance for the top 10 covariates
+# First, create a data frame with covariates, their coefficients' absolute values, and keep only the ones with the largest coefs
+top_coef_df <- data.frame(abs(matching_ps_att$model$coefficients)) %>%
+  slice_max(abs.matching_ps_att.model.coefficients., n = 11) #11, not 10, to include the intercept AND 10 covariates
+# Save the names of the top 10 covariates.
+top_coefs <- c(rownames(top_coef_df))
+top_coefs <- top_coefs[-c(1)] #removing the intercept
+# Generate balance stats for top 10 covariates
+bal_df <- balance_table$Balance[top_coefs,]
+bal_df
+# Only 5 out of 10 of the top covariates are balanced post-matching
+
+# Plot it
+# There is no way to plot only a subset of variables, so instead of plotting top_coefs, we plot them all.
+summary(matching_ps_att) %>% plot()
+```
 ## Simulations
+
+For this section, use select() function
 
 Henderson/Chatfield argue that an improperly specified propensity score model can actually \textit{increase} the bias of the estimate. To demonstrate this, they simulate 800,000 different propensity score models by choosing different permutations of covariates. To investigate their claim, do the following:
 
@@ -111,17 +167,91 @@ Henderson/Chatfield argue that an improperly specified propensity score model ca
 \textbf{Note: There are lots of post-treatment covariates in this dataset (about 50!)! You need to be careful not to include these in the pre-treatment balancing. Many of you are probably used to selecting or dropping columns manually, or positionally. However, you may not always have a convenient arrangement of columns, nor is it fun to type out 50 different column names. Instead see if you can use dplyr 1.0.0 functions to programatically drop post-treatment variables (\href{https://www.tidyverse.org/blog/2020/03/dplyr-1-0-0-select-rename-relocate/}{here} is a useful tutorial).}
 
 ```{r}
-# Remove post-treatment covariates
+# Remove post-treatment covariates & outcome variable
+ypsps_dropna_droplater = ypsps %>%
+  select(!contains("1973") & !contains("1982")) %>%
+  na.omit()
 
-# Randomly select features
+pre_treat_df = ypsps_dropna_droplater %>%
+  select(!contains("student_ppnscal")) %>%
+  select(!"college") # we don't want "college" to be picked as a covariate for college attendance
+
+pre_covars_quant = ncol(pre_treat_df)
+pre_covars = colnames(pre_treat_df)
+```
+
+```{r}
+# Generate empty data frame to hold stats from random simulations
+simulations_df = data.frame(matrix(ncol=3, nrow=1000))
+colnames(simulations_df) = c("mean_improvement", "prop_threshold", "ATT")
+
+# Generate empty nested list to hold models
+simul_models = list()
 
 # Simulate random selection of features 10k+ times
+r <- nrow(simulations_df)
+for (sim in 1:r) {
+  
+  # randomly select a quantity of pre-treatment covariates
+  num_vars = sample(1:pre_covars_quant, 1)
+  
+  # randomly select covariates, save as "features", save in df, and in formula syntax form
+  features = sample(x = pre_covars, size = num_vars)
+  features_form = paste("college ~ ",paste(features,collapse=" + "))
+  
+  # run propensity score matching model, using nearest neighbor method, linear model, ATT estimand
+  random_ps_att <- matchit(formula = formula(features_form),
+                           data = ypsps_dropna_droplater, # fullest data while omitting NAs and irrelevant columns
+                           method = "nearest",
+                           distance = "glm",
+                           link = "logit",
+                           estimand = "ATT",
+                           replace = TRUE,
+                           ratio = 2)
+  
+  # save model in df
+  simul_models[[sim]] <- random_ps_att
+  
+  # generate summary information for the matching model, extract percent improvement, and save in df
+  random_ps_att_sum = summary(random_ps_att)
+  random_ps_att_sum_impr = random_ps_att_sum[["reduction"]]
+  mean_improved = mean(random_ps_att_sum_impr[,1])
+  simulations_df$mean_improvement[sim] <- mean_improved
+  
+  # create cobalt object to fetch the proportion of covariates meeting the balance threshold, and save this proportion to the df
+  co_bal <- bal.tab(x = random_ps_att, thresholds = .1)
+  prop_bal = co_bal[["Balanced.mean.diffs"]][["count"]][1] / (co_bal[["Balanced.mean.diffs"]][["count"]][1] + co_bal[["Balanced.mean.diffs"]][["count"]][2])
+  simulations_df$prop_threshold[sim] = prop_bal
+  
+  # save the data from the matching model and use for linear, matched regression on the political participation outcome. From this, get the ATT and save it in the df.
+  random_ps_att_data = match.data(random_ps_att)
+  features_form2 = paste("student_ppnscal ~ college + ",paste(features,collapse=" + "))
+  lm_ps_att = lm(formula = features_form2, 
+                 data = random_ps_att_data, 
+                 weights = weights)
+  lm_ps_att_sum = summary(lm_ps_att)
+  ATT_ps = lm_ps_att_sum$coefficients["college", "Estimate"]
+  simulations_df$ATT[sim] <- ATT_ps
+}
+```
 
-# Fit p-score models and save ATTs, proportion of balanced covariates, and mean percent balance improvement
-
+```{r}
 # Plot ATT v. proportion
+simulations_df %>%
+  ggplot() +
+  geom_smooth(aes(x = prop_threshold, y = ATT)) +
+  ggtitle("Average Treatment Effect on Treated by Proportion of Covariates Meeting Balance Threshold") +
+  xlab("Proportion of Covariates Meeting Threshold") +
+  ylab("ATT")
+```
 
+```{r}
 # 10 random covariate balance plots (hint try gridExtra)
+random_models = c(sample(x=simul_models, size = 10))
+for (m in random_models) {
+  rando_plot <- summary(m) %>% plot()
+}
+
 # Note: ggplot objects are finnicky so ask for help if you're struggling to automatically create them; consider using functions!
 ```
 
