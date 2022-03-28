@@ -255,15 +255,21 @@ for (m in random_models) {
 # Note: ggplot objects are finnicky so ask for help if you're struggling to automatically create them; consider using functions!
 ```
 
+```{r}
+sum(simulations_df$prop_threshold > 0.5)
+sum(simulations_df$prop_threshold > 0.65999)
+sum(simulations_df$mean_improvement > 0)
+hist(simulations_df$ATT)
+```
 ## Questions
 
 \begin{enumerate}
     \item \textbf{How many simulations resulted in models with a higher proportion of balanced covariates? Do you have any concerns about this?}
-    \item \textbf{Your Answer}:
+    \item \textbf{Your Answer}: Less than half of the simulated models had a majority of their variables balanced. Less than a quarter of models had 2/3s of their variables balanced. And, only about a quarter of models actually had their balance *improved* through the matching process. This shows that there are not plenty of easy-to-match subjects across all or most variables. The selection of variables is therefore very important, and that including *all* the relevant variables might produce a model that is not balanced enough to generate reliable results for this dataset.
     \item \textbf{Analyze the distribution of the ATTs. Do you have any concerns about this distribution?}
-    \item \textbf{Your Answer:}
+    \item \textbf{Your Answer:} It is not a normal distribution. And more importantly, more than 80% of models produce a positive ATT, showing that assigning propensity scores essentially at random, you're very likely to get a result that says that college augments later political activity.
     \item \textbf{Do your 10 randomly chosen covariate balance plots produce similar numbers on the same covariates? Is it a concern if they do not?}
-    \item \textbf{Your Answer:}
+    \item \textbf{Your Answer:} Looking at student_GovtOpinion, student_demonstrate, and student_GovtCrook, it seems that they all make improvements in their balance post matching, but there is often an outlier model that improves by a much smaller margin its counterpart models. This might be a problem because it indicates that subjects who are matched in one model might actually be quite different from one another once we consider additional variables.
 \end{enumerate}
 
 # Matching Algorithm of Your Choice
