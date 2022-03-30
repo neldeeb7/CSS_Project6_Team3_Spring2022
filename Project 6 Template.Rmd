@@ -202,7 +202,7 @@ for (sim in 1:r) {
   features = sample(x = pre_covars, size = num_vars)
   features_form = paste("college ~ ",paste(features,collapse=" + "))
   
-  # run propensity score matching model, using nearest neighbor method, linear model, ATT estimand
+  # run propensity score matching model, using nearest neighbor method, linear model, ATT estimand 
   random_ps_att <- matchit(formula = formula(features_form),
                            data = ypsps_dropna_droplater, # fullest data while omitting NAs and irrelevant columns
                            method = "nearest",
@@ -282,23 +282,107 @@ hist(simulations_df$ATT)
 Henderson/Chatfield propose using genetic matching to learn the best weights for Mahalanobis distance matching. Choose a matching algorithm other than the propensity score (you may use genetic matching if you wish, but it is also fine to use the greedy or optimal algorithms we covered in lab instead). Repeat the same steps as specified in Section 4.2 and answer the following questions:
 
 ```{r}
-# Remove post-treatment covariates
+install.packages("Matching")
+install.packages("rgenoud")
 
-# Randomly select features
-
-# Simulate random selection of features 10k+ times
-
-# Fit  models and save ATTs, proportion of balanced covariates, and mean percent balance improvement
-
-# Plot ATT v. proportion
-
-# 10 random covariate balance plots (hint try gridExtra)
-# Note: ggplot objects are finnicky so ask for help if you're struggling to automatically create them; consider using functions!
+library(Matching)
+library(rgenoud)
 ```
 
 ```{r}
-# Visualization for distributions of percent improvement
+
+#NE: DO I NEED TO DO THIS AGAIN AFTER NADIA DID IT? 
+# Remove post-treatment covariates & outcome variable
+ypsps_dropna_droplater = ypsps %>%
+  select(!contains("1973") & !contains("1982")) %>%
+  na.omit()
+
+pre_treat_df = ypsps_dropna_droplater %>%
+  select(!contains("student_ppnscal")) %>%
+  select(!"college") # we don't want "college" to be picked as a covariate for college attendance
+
+pre_covars_quant = ncol(pre_treat_df)
+pre_covars = colnames(pre_treat_df)
 ```
+
+
+```{r}
+# Generate empty data frame to hold stats from random simulations
+simulations_df = data.frame(matrix(ncol=3, nrow=1000))
+colnames(simulations_df) = c("mean_improvement", "prop_threshold", "ATT")
+
+# Generate empty nested list to hold models
+simul_models = list()
+
+# Simulate random selection of features 10k+ times
+r <- nrow(simulations_df)
+for (sim in 1:r) {
+  
+  # randomly select a quantity of pre-treatment covariates
+  num_vars = sample(1:pre_covars_quant, 1)
+  
+  # randomly select covariates, save as "features", save in df, and in formula syntax form
+  features = sample(x = pre_covars, size = num_vars)
+  features_form = paste("college ~ ",paste(features,collapse=" + "))
+
+  match_gen_att <- matchit(formula = formula(features_form),
+                           data = ypsps_dropna_droplater, # fullest data while omitting NAs and irrelevant columns 
+                           method = "genetic", distance = "glm", link = "logit", estimand = "ATT", replace = TRUE, ratio = 3)
+
+  # save model in df
+  simul_models[[sim]] <- match_gen_att
+  
+  
+    # generate summary information for the matching model, extract percent improvement, and save in df
+  match_gen_att_sum = summary(match_gen_att)
+  match_gen_att_sum_impr = match_gen_att_sum[["reduction"]]
+  mean_improved = mean(match_gen_att_sum_impr[,1])
+  simulations_df$mean_improvement[sim] <- mean_improved
+
+    # create cobalt object to fetch the proportion of covariates meeting the balance threshold, and save this proportion to the df
+  co_bal <- bal.tab(x = match_gen_att, thresholds = .1)
+  prop_bal = co_bal[["Balanced.mean.diffs"]][["count"]][1] / (co_bal[["Balanced.mean.diffs"]][["count"]][1] + co_bal[["Balanced.mean.diffs"]][["count"]][2])
+  simulations_df$prop_threshold[sim] = prop_bal
+  
+    #Fitmodels and save ATTs, proportion of balanced covariates, and mean percent balance improvement.
+  match_gen_att_data = match.data(match_gen_att)
+  features_form2 = paste("student_ppnscal ~ college + ",paste(features,collapse=" + "))
+  lm_ps_att = lm(formula = features_form2, 
+                 data = random_ps_att_data, 
+                 weights = weights)
+  lm_ps_att_sum = summary(lm_ps_att)
+  ATT_ps = lm_ps_att_sum$coefficients["college", "Estimate"]
+  simulations_df$ATT[sim] <- ATT_ps
+}
+```
+
+```{r}
+# Plot ATT v. proportion
+simulations_df %>%
+  ggplot() +
+  geom_smooth(aes(x = prop_threshold, y = ATT)) +
+  ggtitle("Average Treatment Effect on Treated by Proportion of Covariates Meeting Balance Threshold") +
+  xlab("Proportion of Covariates Meeting Threshold") +
+  ylab("ATT")
+```
+
+```{r}
+# 10 random covariate balance plots (hint try gridExtra)
+random_models = c(sample(x=simul_models, size = 10))
+for (m in random_models) {
+  rando_plot <- summary(m) %>% plot()
+}
+```
+
+
+```{r}
+# Visualization for distributions of percent improvement
+sum(simulations_df$prop_threshold > 0.5)
+sum(simulations_df$prop_threshold > 0.65999)
+sum(simulations_df$mean_improvement > 0)
+hist(simulations_df$ATT)
+```
+
 
 ## Questions
 
