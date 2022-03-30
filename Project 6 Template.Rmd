@@ -25,6 +25,9 @@ Otherwise, we also have covariates measured for survey responses to various ques
 # Feel free to load other libraries as you wish
 library(tidyverse)
 library(MatchIt)
+library(ggplot2)
+
+set.seed(10)
 
 # Load ypsps data
 ypsps <- read_csv('data/ypsps.csv')
@@ -81,7 +84,7 @@ ggplot() +
     \item \textbf{What do you see across your simulations? Why does independence of treatment assignment and baseline covariates not guarantee balance of treatment assignment and baseline covariates?}
 \end{enumerate}
 
-\textbf{Your Answer}: From the histogram, it appears that there is a normal distribution of students engaging in political demonstrations across the control/treatment classes. This normal distribution indicates that there is an independence between the selected covariate and the exposure variable. However, we can not assume independence of treatment assignment because this is an observational study, not an experiment study.
+\textbf{Your Answer}: From the histogram, it appears that there is a normal distribution of students engaging in political demonstrations across the control/treatment classes. This normal distribution indicates that there is an independence between the selected covariate and the exposure variable. However, we can not assume independence of treatment assignment because this is an observational study, not an experimental study.
 
 
 # Propensity Score Matching
