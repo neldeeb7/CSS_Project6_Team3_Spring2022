@@ -91,7 +91,7 @@ ggplot() +
 # Propensity Score Matching
 
 ## One Model
-Select covariates that you think best represent the "true" model predicting whether a student chooses to attend college, and estimate a propensity score model to calculate the Average Treatment Effect on the Treated (ATT). Plot the balance of the top 10 (or fewer if you select fewer covariates). Report the balance of the p-scores across both the treatment and control groups, and using a threshold of standardized mean difference of p-score $\leq .1$, report the number of covariates that meet that balance threshold.
+Select covariates that you think best represent the "true" model predicting whether a student chooses to attend college, and estimate a p # generate summary information for the matching model, extract percent improvement, and save in df
 
 ```{r}
 # Select covariates that represent the "true" model for selection into college
@@ -103,6 +103,7 @@ sel_college_vars <- c("student_GPA", "student_SchOfficer", "student_SchClub", "s
 # students' desire to read probably influences future plans for education
 # parental educ, knowledge, and income matter
 # gender and race of student influences college attendance
+
 
 # Fit model with matching
 glm_formula <- paste("college ~ ",paste(sel_college_vars, collapse=" + "))
@@ -116,6 +117,7 @@ matching_ps_att <- matchit(formula = formula(glm_formula),
                             #because there is imbalance in the number of college attendees and non-attendees
                             ratio = 2)
 
+
 # Save data from model for later
 matching_ps_att_data <- match.data(matching_ps_att)
 ```
@@ -123,9 +125,11 @@ matching_ps_att_data <- match.data(matching_ps_att)
 
 ```{r}
 # Report the overall balance and the proportion of covariates that meet the balance threshold
+
 # Install cobalt
 install.packages("cobalt")
 library(cobalt)
+
 # Use cobalt to create a balance table
 balance_table <- bal.tab(x = matching_ps_att, thresholds = .1)
 balance_table
@@ -155,6 +159,7 @@ bal_df
 # There is no way to plot only a subset of variables, so instead of plotting top_coefs, we plot them all.
 summary(matching_ps_att) %>% plot()
 ```
+
 ## Simulations
 
 For this section, use select() function
@@ -186,12 +191,11 @@ pre_covars = colnames(pre_treat_df)
 
 ```{r}
 # Generate empty data frame to hold stats from random simulations
-simulations_df = data.frame(matrix(ncol=3, nrow=1000))
+simulations_df = data.frame(matrix(ncol=3, nrow=100))
 colnames(simulations_df) = c("mean_improvement", "prop_threshold", "ATT")
 
 # Generate empty nested list to hold models
 simul_models = list()
-
 # Simulate random selection of features 10k+ times
 r <- nrow(simulations_df)
 for (sim in 1:r) {
@@ -283,18 +287,16 @@ hist(simulations_df$ATT)
 Henderson/Chatfield propose using genetic matching to learn the best weights for Mahalanobis distance matching. Choose a matching algorithm other than the propensity score (you may use genetic matching if you wish, but it is also fine to use the greedy or optimal algorithms we covered in lab instead). Repeat the same steps as specified in Section 4.2 and answer the following questions:
 
 ```{r}
-#install.packages("Matching")
-#install.packages("rgenoud")
+install.packages("Matching")
+install.packages("rgenoud")
 
-#library(Matching)
-#library(rgenoud)
+library(Matching)
+library(rgenoud)
 ```
-
-
 
 ```{r}
 # Generate empty data frame to hold stats from random simulations
-simulations_df5 = data.frame(matrix(ncol=3, nrow=1000))
+simulations_df5 = data.frame(matrix(ncol=3, nrow=100))
 colnames(simulations_df5) = c("mean_improvement", "prop_threshold", "ATT")
 
 # Generate empty nested list to hold models
@@ -311,30 +313,30 @@ for (sim in 1:r5) {
   features = sample(x = pre_covars, size = num_vars)
   features_form = paste("college ~ ",paste(features,collapse=" + "))
 
-  match_gen_att <- matchit(formula = formula(features_form),
+  match_full_att <- matchit(formula = formula(features_form),
                            data = ypsps_dropna_droplater, # fullest data while omitting NAs and irrelevant columns 
-                           method = "genetic", distance = "glm", link = "logit", estimand = "ATT", replace = TRUE, ratio = 2)
+                           method = "full", distance = "mahalanobis")
 
   # save model in df
-  simul_models5[[sim]] <- match_gen_att
+  simul_models5[[sim]] <- match_full_att
   
   
     # generate summary information for the matching model, extract percent improvement, and save in df
-  match_gen_att_sum = summary(match_gen_att)
-  match_gen_att_sum_impr = match_gen_att_sum[["reduction"]]
-  mean_improved = mean(match_gen_att_sum_impr[,1])
+  match_full_att_sum = summary(match_full_att)
+  match_full_att_sum_impr = match_full_att_sum[["reduction"]]
+  mean_improved = mean(match_full_att_sum_impr[,1])
   simulations_df5$mean_improvement[sim] <- mean_improved
 
     # create cobalt object to fetch the proportion of covariates meeting the balance threshold, and save this proportion to the df
-  co_bal <- bal.tab(x = match_gen_att, thresholds = .1)
+  co_bal <- bal.tab(x = match_full_att, thresholds = .1)
   prop_bal = co_bal[["Balanced.mean.diffs"]][["count"]][1] / (co_bal[["Balanced.mean.diffs"]][["count"]][1] + co_bal[["Balanced.mean.diffs"]][["count"]][2])
   simulations_df5$prop_threshold[sim] = prop_bal
   
     #Fitmodels and save ATTs, proportion of balanced covariates, and mean percent balance improvement.
-  match_gen_att_data = match.data(match_gen_att)
+  match_full_att_data = match.data(match_full_att)
   features_form2 = paste("student_ppnscal ~ college + ",paste(features,collapse=" + "))
   lm_ps_att = lm(formula = features_form2, 
-                 data = match_gen_att_data, 
+                 data = match_full_att_data, 
                  weights = weights)
   lm_ps_att_sum = summary(lm_ps_att)
   ATT_ps = lm_ps_att_sum$coefficients["college", "Estimate"]
