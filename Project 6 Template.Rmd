@@ -26,6 +26,7 @@ Otherwise, we also have covariates measured for survey responses to various ques
 library(tidyverse)
 library(MatchIt)
 library(ggplot2)
+library(dplyr)
 
 set.seed(10)
 
@@ -282,28 +283,13 @@ hist(simulations_df$ATT)
 Henderson/Chatfield propose using genetic matching to learn the best weights for Mahalanobis distance matching. Choose a matching algorithm other than the propensity score (you may use genetic matching if you wish, but it is also fine to use the greedy or optimal algorithms we covered in lab instead). Repeat the same steps as specified in Section 4.2 and answer the following questions:
 
 ```{r}
-install.packages("Matching")
-install.packages("rgenoud")
+#install.packages("Matching")
+#install.packages("rgenoud")
 
-library(Matching)
-library(rgenoud)
+#library(Matching)
+#library(rgenoud)
 ```
 
-```{r}
-#DELETE-ABLE
-#NE: DO I NEED TO DO THIS AGAIN AFTER NADIA DID IT? 
-# Remove post-treatment covariates & outcome variable
-ypsps_dropna_droplater = ypsps %>%
-  select(!contains("1973") & !contains("1982")) %>%
-  na.omit()
-
-pre_treat_df = ypsps_dropna_droplater %>%
-  select(!contains("student_ppnscal")) %>%
-  select(!"college") # we don't want "college" to be picked as a covariate for college attendance
-
-pre_covars_quant = ncol(pre_treat_df)
-pre_covars = colnames(pre_treat_df)
-```
 
 
 ```{r}
