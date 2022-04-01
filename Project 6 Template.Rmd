@@ -384,7 +384,7 @@ hist(simulations_df$mean_improvement)
 
 \begin{enumerate}
     \item Why might it be a good idea to do matching even if we have a randomized or as-if-random design?
-    \item \textbf{Your Answer:}
+    \item \textbf{Your Answer:} Matching is helpful in randomized or as-if-random designs if the covariates in the treatment and control groups are unbalanced. Therefore, matching methods will improve the balance of covariates and precision of the model.
     \item The standard way of estimating the propensity score is using a logistic regression to estimate probability of treatment. Given what we know about the curse of dimensionality, do you think there might be advantages to using other machine learning algorithms (decision trees, bagging/boosting forests, ensembles, etc.) to estimate propensity scores instead?
-    \item \textbf{Your Answer:}
+    \item \textbf{Your Answer:} The curse of dimensionality is when we organize our data into a high number of dimensions because phenomena do not occur at lower-dimensions. However, as the volume increases, the data become sparse and we end up with many empty cells across our covariates. Even though estimating propensity scores using logistic regression is standard, it imposes several parametric assumptions about the distribution of a population (e.g., independence of errors, linearity between the log-odds of the outcome and continuous variables). Other machine learning algorithms like random forest or decision trees are advantageous to estimate propensity scores because they are non-parametric and do not impose any assumptions about the distribution of the data.  
 \end{enumerate}
