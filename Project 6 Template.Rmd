@@ -360,7 +360,12 @@ for (m in random_models5) {
   rando_plot5 <- summary(m) %>% plot()
 }
 ```
+```{r}
+sum(simulations_df5$prop_threshold > 0.5)
+sum(simulations_df5$prop_threshold > 0.65999)
+sum(simulations_df5$mean_improvement > 0)
 
+```
 
 ```{r}
 # Visualization for distributions of percent improvement
@@ -372,9 +377,9 @@ hist(simulations_df$mean_improvement)
 
 \begin{enumerate}
     \item \textbf{Does your alternative matching method have more runs with higher proportions of balanced covariates?}
-    \item \textbf{Your Answer:} 
+    \item \textbf{Your Answer:} Our alternative matching method has fewer runs with higher proportions of balanced covariates. Less than 20% of the simulated models had half of their variables balanced and around 12% of the simulated models had the majority of their variables balanced. This demonstrates that the Mahalnobis matching performed worse than the nearest neighbor method and that there were many hard-to-match subjects across covariates. 
     \item \textbf{Use a visualization to examine the change in the distribution of the percent improvement in balance in propensity score matching vs. the distribution of the percent improvement in balance in your new method. Which did better? Analyze the results in 1-2 sentences.}
-    \item \textbf{Your Answer:} The alternative matching method uses Mahalanobis matching and shows less variation in the mean improvement and a higher proportion of balanced covariates than the original simulation.  
+    \item \textbf{Your Answer:} The alternative matching method uses Mahalanobis matching and shows less variation in the mean improvement than the original simulation.  
 \end{enumerate}
 
 \textbf{Optional:} Looking ahead to the discussion questions, you may choose to model the propensity score using an algorithm other than logistic regression and perform these simulations again, if you wish to explore the second discussion question further.
